@@ -112,3 +112,16 @@ build_example(
     ${libapplications}
     ${libtraffic-control}
 )
+
+# ADICIONE O SEU NOVO BLOCO AQUI
+build_example(
+  NAME prague-example
+  SOURCE_FILES prague-example.cc
+  LIBRARIES_TO_LINK
+    ${libcore}
+    ${libnetwork}
+    ${libinternet}
+    ${libpoint-to-point}
+    ${libapplications}
+    ${libtraffic-control}
+)
