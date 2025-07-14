@@ -89,6 +89,7 @@ set(source_files
     model/tcp-congestion-ops.cc
     model/tcp-cubic.cc
     model/tcp-dctcp.cc
+    model/tcp-prague.cc
     model/tcp-header.cc
     model/tcp-highspeed.cc
     model/tcp-htcp.cc
@@ -214,6 +215,7 @@ set(header_files
     model/tcp-congestion-ops.h
     model/tcp-cubic.h
     model/tcp-dctcp.h
+    model/tcp-prague.h
     model/tcp-header.h
     model/tcp-highspeed.h
     model/tcp-htcp.h
