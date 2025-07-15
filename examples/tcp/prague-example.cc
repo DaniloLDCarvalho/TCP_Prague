@@ -20,6 +20,7 @@
 #include "ns3/network-module.h"
 #include "ns3/point-to-point-module.h"
 #include "ns3/traffic-control-module.h"
+#include "ns3/csma-module.h"
 
 #include <iomanip>
 #include <iostream>
@@ -273,15 +274,33 @@ main(int argc, char* argv[])
     pointToPointT.SetDeviceAttribute("DataRate", StringValue("10Gbps"));
     pointToPointT.SetChannelAttribute("Delay", StringValue("10us"));
 
-    // Bloco para forçar perdas e testar o nosso código de fallback
-    Ptr<RateErrorModel> em = CreateObject<RateErrorModel>();
-    em->SetAttribute("ErrorRate", DoubleValue(0.01)); // 1% de taxa de perda
-    em->SetAttribute("ErrorUnit", StringValue("ERROR_UNIT_PACKET"));
-    pointToPointT.SetDeviceAttribute("ReceiveErrorModel", PointerValue(em));
+     // Troque a instalação de links S1 <-> T1 por CSMA
+    CsmaHelper csmaS1T1;
+    csmaS1T1.SetChannelAttribute("DataRate", StringValue("1Gbps"));
+    csmaS1T1.SetChannelAttribute("Delay", StringValue("10us"));
 
-    // Create a total of 62 links.
     std::vector<NetDeviceContainer> S1T1;
     S1T1.reserve(10);
+    for (std::size_t i = 0; i < 10; i++)
+    {
+        NodeContainer pair;
+        pair.Add(S1.Get(i));
+        pair.Add(T1);
+        NetDeviceContainer devs = csmaS1T1.Install(pair);
+        S1T1.push_back(devs);
+    }
+
+    // Bloco para forçar perdas e testar o fallback
+    /*
+    Ptr<RateErrorModel> em = CreateObject<RateErrorModel>();
+    em->SetAttribute("ErrorRate", DoubleValue(0.01));
+    em->SetAttribute("ErrorUnit", StringValue("ERROR_UNIT_PACKET"));
+    pointToPointT.SetDeviceAttribute("ReceiveErrorModel", PointerValue(em));
+    */
+
+    // Create a total of 62 links.
+    /*std::vector<NetDeviceContainer> S1T1;
+    S1T1.reserve(10);*/
     std::vector<NetDeviceContainer> S2T1;
     S2T1.reserve(20);
     std::vector<NetDeviceContainer> S3T2;
@@ -290,6 +309,49 @@ main(int argc, char* argv[])
     R2T2.reserve(20);
     NetDeviceContainer T1T2 = pointToPointT.Install(T1, T2);
     NetDeviceContainer R1T2 = pointToPointSR.Install(R1, T2);
+
+    for (std::size_t i = 0; i < 10; i++)
+    {
+        csmaS1T1.EnablePcap("pcap-s1t1-" + std::to_string(i), S1T1[i]);
+    }
+
+    /*for (std::size_t i = 0; i < 10; i++)
+    {
+        Ptr<Node> n = S1.Get(i);
+        S1T1.push_back(pointToPointSR.Install(n, T1));
+    }*/
+    for (std::size_t i = 0; i < 20; i++)
+    {
+        Ptr<Node> n = S2.Get(i);
+        S2T1.push_back(pointToPointSR.Install(n, T1));
+    }
+    for (std::size_t i = 0; i < 10; i++)
+    {
+        Ptr<Node> n = S3.Get(i);
+        S3T2.push_back(pointToPointSR.Install(n, T2));
+    }
+    for (std::size_t i = 0; i < 20; i++)
+    {
+        Ptr<Node> n = R2.Get(i);
+        R2T2.push_back(pointToPointSR.Install(n, T2));
+    }
+
+    // pcap
+    for (std::size_t i = 0; i < 10; i++)
+    {
+        pointToPointSR.EnablePcap("pcap-s1t1-" + std::to_string(i), S1T1[i], false);
+    }
+    for (std::size_t i = 0; i < 20; i++)
+    {
+        pointToPointSR.EnablePcap("pcap-s2t1-" + std::to_string(i), S2T1[i], false);
+    }
+    for (std::size_t i = 0; i < 10; i++)
+    {
+        pointToPointSR.EnablePcap("pcap-s3t2-" + std::to_string(i), S3T2[i], false);
+    }
+    pointToPointSR.EnablePcap("pcap-r1t2", R1T2);
+    pointToPointT.EnablePcap("pcap-t1t2", T1T2);
+
 
     for (std::size_t i = 0; i < 10; i++)
     {
@@ -311,6 +373,7 @@ main(int argc, char* argv[])
         Ptr<Node> n = R2.Get(i);
         R2T2.push_back(pointToPointSR.Install(n, T2));
     }
+
 
     InternetStackHelper stack;
     stack.InstallAll();
