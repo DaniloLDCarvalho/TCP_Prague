@@ -40,8 +40,8 @@ TcpPrague::GetTypeId()
                           MakeDoubleAccessor(&TcpPrague::InitializePragueAlpha),
                           MakeDoubleChecker<double>(0, 1))
             .AddAttribute("UseEct0",
-                          "Use ECT(0) for ECN codepoint, if false use ECT(1)",
-                          BooleanValue(true),
+                          "Set to true to use ECT(0) for L4S ECN. If false (default), uses ECT(1)",
+                          BooleanValue(false),
                           MakeBooleanAccessor(&TcpPrague::m_useEct0),
                           MakeBooleanChecker())
             .AddTraceSource("CongestionEstimate",
