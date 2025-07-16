@@ -49,6 +49,7 @@ class TcpOption : public Object
         SACKPERMITTED = 4, //!< SACKPERMITTED
         SACK = 5,          //!< SACK
         TS = 8,            //!< TS
+        ACE = 15,          //!< Accurate ECN Option
         UNKNOWN = 255      //!< not a standardized value; for unknown recv'd options
     };
 

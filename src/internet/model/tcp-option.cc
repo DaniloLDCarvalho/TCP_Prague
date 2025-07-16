@@ -13,6 +13,7 @@
 #include "tcp-option-sack.h"
 #include "tcp-option-ts.h"
 #include "tcp-option-winscale.h"
+#include "tcp-option-ace.h"
 
 #include "ns3/log.h"
 #include "ns3/type-id.h"
@@ -59,6 +60,7 @@ TcpOption::CreateOption(uint8_t kind)
         {TcpOption::WINSCALE, TcpOptionWinScale::GetTypeId()},
         {TcpOption::SACKPERMITTED, TcpOptionSackPermitted::GetTypeId()},
         {TcpOption::SACK, TcpOptionSack::GetTypeId()},
+        {TcpOption::ACE, TcpOptionAce::GetTypeId()},
         {TcpOption::UNKNOWN, TcpOptionUnknown::GetTypeId()},
     };
 
@@ -86,6 +88,7 @@ TcpOption::IsKindKnown(uint8_t kind)
     case SACKPERMITTED:
     case SACK:
     case TS:
+    case ACE:
         // Do not add UNKNOWN here
         return true;
     }
