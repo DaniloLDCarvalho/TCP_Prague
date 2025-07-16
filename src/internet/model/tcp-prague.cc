@@ -67,7 +67,9 @@ TcpPrague::TcpPrague()
       m_nextSeqFlag(false),
       m_ceState(false),
       m_delayedAckReserved(false),
-      m_initialized(false)
+      m_initialized(false),
+      m_baseRtt(Time(0)),
+      m_inClassicFallback(false)
 {
     NS_LOG_FUNCTION(this);
 }
@@ -131,6 +133,35 @@ void
 TcpPrague::PktsAcked(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, const Time& rtt)
 {
     NS_LOG_FUNCTION(this << tcb << segmentsAcked << rtt);
+
+    // Lógica da Feature 4: Detetar aumento de RTT
+    if (!rtt.IsZero())
+    {
+        // Atualiza o RTT base com o mínimo já visto
+        if (m_baseRtt.IsZero() || rtt < m_baseRtt)
+        {
+            m_baseRtt = rtt;
+        }
+
+        // Verifica se o RTT suavizado (srtt) excedeu o limiar de fallback (base + 3ms)
+        if (tcb->m_srtt > (m_baseRtt + MilliSeconds(3)))
+        {
+            if (!m_inClassicFallback)
+            {
+                NS_LOG_INFO("Entering Classic Fallback Mode. BaseRTT: " << m_baseRtt << ", SRTT: " << tcb->m_srtt);
+                m_inClassicFallback = true;
+            }
+        }
+        else
+        {
+            if (m_inClassicFallback)
+            {
+                NS_LOG_INFO("Exiting Classic Fallback Mode. BaseRTT: " << m_baseRtt << ", SRTT: " << tcb->m_srtt);
+                m_inClassicFallback = false;
+            }
+        }
+    }
+
     m_ackedBytesTotal += segmentsAcked * tcb->m_segmentSize;
     if (tcb->m_ecnState == TcpSocketState::ECN_ECE_RCVD)
     {
@@ -285,8 +316,23 @@ TcpPrague::CwndEvent(Ptr<TcpSocketState> tcb, const TcpSocketState::TcpCAEvent_t
 
     // CASOS DE ECN
     case TcpSocketState::CA_EVENT_ECN_IS_CE:
-        CeState0to1(tcb);
-        break;
+    {
+        if (m_inClassicFallback)
+        {
+            // MODO FALLBACK: Reage à marcação ECN de forma agressiva, como se fosse uma perda.
+            NS_LOG_INFO("Classic Fallback: Applying harsh reduction due to ECN mark.");
+            // Reutilizamos a mesma lógica da Feature 3 para consistência.
+            tcb->m_ssThresh = std::max(static_cast<uint32_t>(tcb->m_segmentSize * 2), tcb->m_cWnd.Get() / 2);
+            tcb->m_cWnd = tcb->m_ssThresh.Get();
+        }
+        else
+        {
+            // MODO NORMAL: Reage à marcação ECN de forma suave.
+            CeState0to1(tcb);
+        }
+        break; 
+    }
+
     case TcpSocketState::CA_EVENT_ECN_NO_CE:
         CeState1to0(tcb);
         break;
