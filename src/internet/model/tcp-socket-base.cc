@@ -27,6 +27,7 @@
 #include "tcp-congestion-ops.h"
 #include "tcp-header.h"
 #include "tcp-l4-protocol.h"
+#include "tcp-option-ace.h"
 #include "tcp-option-sack-permitted.h"
 #include "tcp-option-sack.h"
 #include "tcp-option-ts.h"
@@ -1233,6 +1234,10 @@ TcpSocketBase::ForwardUp(Ptr<Packet> packet,
         m_ecnCESeq = tcpHeader.GetSequenceNumber();
         m_tcb->m_ecnState = TcpSocketState::ECN_CE_RCVD;
         m_congestionControl->CwndEvent(m_tcb, TcpSocketState::CA_EVENT_ECN_IS_CE);
+
+        // Contar bytes CE
+        m_ceBytes += packet->GetSize();
+        NS_LOG_INFO("AccECN: CE packet received. Total CE bytes now: " << m_ceBytes);
     }
     else if (header.GetEcn() != Ipv4Header::ECN_NotECT &&
              m_tcb->m_ecnState != TcpSocketState::ECN_DISABLED)
@@ -1273,6 +1278,10 @@ TcpSocketBase::ForwardUp6(Ptr<Packet> packet,
         m_ecnCESeq = tcpHeader.GetSequenceNumber();
         m_tcb->m_ecnState = TcpSocketState::ECN_CE_RCVD;
         m_congestionControl->CwndEvent(m_tcb, TcpSocketState::CA_EVENT_ECN_IS_CE);
+
+        // Contar bytes CE
+        m_ceBytes += packet->GetSize();
+        NS_LOG_INFO("AccECN: CE packet received. Total CE bytes now: " << m_ceBytes);
     }
     else if (header.GetEcn() != Ipv6Header::ECN_NotECT)
     {
@@ -4323,6 +4332,20 @@ TcpSocketBase::AddOptions(TcpHeader& header)
     {
         AddOptionTimestamp(header);
     }
+
+    // logica feature 2
+    // (Mais tarde, adicionaremos uma verificação para ver se o AccECN foi negociado)
+    if (m_ceBytes > 0)
+    {
+        Ptr<TcpOptionAce> aceOpt = CreateObject<TcpOptionAce>();
+        aceOpt->SetCeBytes(m_ceBytes);
+        if (header.AppendOption(aceOpt))
+        {
+            NS_LOG_INFO("AccECN: Appending ACE option to header. CE bytes: " << m_ceBytes);
+            m_ceBytes = 0; // Resetar o contador após adicionar a opção com sucesso
+        }
+    }
+
 }
 
 void
