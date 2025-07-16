@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (c) 2017 NITK Surathkal
  *
  * SPDX-License-Identifier: GPL-2.0-only
@@ -133,6 +133,8 @@ class TcpPrague : public TcpLinuxReno
     double m_g;                //!< Estimation gain
     bool m_useEct0;            //!< Use ECT(0) for ECN codepoint
     bool m_initialized;        //!< Whether Prague has been initialized
+    Time m_baseRtt;            //!< O RTT mínimo observado (baseline)
+    bool m_inClassicFallback;  //!< Verdadeiro se estivermos em modo de fallback clássico
     /**
      * @brief Callback pointer for congestion state update
      */

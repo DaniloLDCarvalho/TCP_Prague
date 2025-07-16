@@ -279,7 +279,8 @@ main(int argc, char* argv[])
     csmaS1T1.SetChannelAttribute("DataRate", StringValue("1Gbps"));
     csmaS1T1.SetChannelAttribute("Delay", StringValue("10us"));
 
-    std::vector<NetDeviceContainer> S1T1;
+    // Se for usar csma:
+    /*std::vector<NetDeviceContainer> S1T1;
     S1T1.reserve(10);
     for (std::size_t i = 0; i < 10; i++)
     {
@@ -288,7 +289,7 @@ main(int argc, char* argv[])
         pair.Add(T1);
         NetDeviceContainer devs = csmaS1T1.Install(pair);
         S1T1.push_back(devs);
-    }
+    }*/
 
     // Bloco para forçar perdas e testar o fallback
     /*
@@ -299,8 +300,8 @@ main(int argc, char* argv[])
     */
 
     // Create a total of 62 links.
-    /*std::vector<NetDeviceContainer> S1T1;
-    S1T1.reserve(10);*/
+    std::vector<NetDeviceContainer> S1T1;
+    S1T1.reserve(10);
     std::vector<NetDeviceContainer> S2T1;
     S2T1.reserve(20);
     std::vector<NetDeviceContainer> S3T2;
@@ -310,16 +311,17 @@ main(int argc, char* argv[])
     NetDeviceContainer T1T2 = pointToPointT.Install(T1, T2);
     NetDeviceContainer R1T2 = pointToPointSR.Install(R1, T2);
 
-    for (std::size_t i = 0; i < 10; i++)
+    // Se for usar csma:
+    /*for (std::size_t i = 0; i < 10; i++)
     {
         csmaS1T1.EnablePcap("pcap-s1t1-" + std::to_string(i), S1T1[i]);
-    }
+    }*/
 
-    /*for (std::size_t i = 0; i < 10; i++)
+    for (std::size_t i = 0; i < 10; i++)
     {
         Ptr<Node> n = S1.Get(i);
         S1T1.push_back(pointToPointSR.Install(n, T1));
-    }*/
+    }
     for (std::size_t i = 0; i < 20; i++)
     {
         Ptr<Node> n = S2.Get(i);
@@ -337,6 +339,7 @@ main(int argc, char* argv[])
     }
 
     // pcap
+    /*
     for (std::size_t i = 0; i < 10; i++)
     {
         pointToPointSR.EnablePcap("pcap-s1t1-" + std::to_string(i), S1T1[i], false);
@@ -350,7 +353,7 @@ main(int argc, char* argv[])
         pointToPointSR.EnablePcap("pcap-s3t2-" + std::to_string(i), S3T2[i], false);
     }
     pointToPointSR.EnablePcap("pcap-r1t2", R1T2);
-    pointToPointT.EnablePcap("pcap-t1t2", T1T2);
+    pointToPointT.EnablePcap("pcap-t1t2", T1T2);*/
 
 
     for (std::size_t i = 0; i < 10; i++)
@@ -387,9 +390,9 @@ main(int argc, char* argv[])
                               "LinkDelay",
                               StringValue("10us"),
                               "MinTh",
-                              DoubleValue(50),
+                              DoubleValue(300),
                               "MaxTh",
-                              DoubleValue(150));
+                              DoubleValue(600));
     QueueDiscContainer queueDiscs1 = tchRed10.Install(T1T2.Get(0));
 
     TrafficControlHelper tchRed1;
