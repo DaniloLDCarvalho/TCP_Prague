@@ -1645,6 +1645,12 @@ TcpSocketBase::ReadOptions(const TcpHeader& tcpHeader, uint32_t* bytesSacked)
         case TcpOption::SACK:
             *bytesSacked = ProcessOptionSack(option);
             break;
+        case TcpOption::ACE:
+        {
+            Ptr<const TcpOptionAce> aceOpt = DynamicCast<const TcpOptionAce>(option);
+            m_tcb->m_aceCeBytes = aceOpt->GetCeBytes();
+            break;
+        }
         default:
             continue;
         }

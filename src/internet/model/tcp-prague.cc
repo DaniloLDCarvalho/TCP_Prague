@@ -134,16 +134,15 @@ TcpPrague::PktsAcked(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, const Time
 {
     NS_LOG_FUNCTION(this << tcb << segmentsAcked << rtt);
 
-    // Lógica da Feature 4: Detetar aumento de RTT
+    if (tcb->m_congState == TcpSocketState::CA_RECOVERY || tcb->m_congState == TcpSocketState::CA_LOSS)
+    {
+        return; 
+    }
+
+    // Lógica da Feature 4: Detetar aumento de RTT (mantém-se)
     if (!rtt.IsZero())
     {
-        // Atualiza o RTT base com o mínimo já visto
-        if (m_baseRtt.IsZero() || rtt < m_baseRtt)
-        {
-            m_baseRtt = rtt;
-        }
-
-        // Verifica se o RTT suavizado (srtt) excedeu o limiar de fallback (base + 3ms)
+        if (m_baseRtt.IsZero() || rtt < m_baseRtt) m_baseRtt = rtt;
         if (tcb->m_srtt > (m_baseRtt + MilliSeconds(3)))
         {
             if (!m_inClassicFallback)
@@ -162,27 +161,37 @@ TcpPrague::PktsAcked(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, const Time
         }
     }
 
-    m_ackedBytesTotal += segmentsAcked * tcb->m_segmentSize;
-    if (tcb->m_ecnState == TcpSocketState::ECN_ECE_RCVD)
+    // =======================================================
+    // LÓGICA DA FEATURE 2 (Emissor): Ler e usar o valor do AccECN
+    // =======================================================
+    
+    // 1. Ler o valor da "caixa de correio" em TcpSocketState
+    uint32_t ceBytes = tcb->m_aceCeBytes;
+    if (ceBytes > 0)
     {
-        m_ackedBytesEcn += segmentsAcked * tcb->m_segmentSize;
+        NS_LOG_INFO("AccECN: Processing ACE value from TCB. CE bytes = " << ceBytes);
     }
-    if (!m_nextSeqFlag)
+
+    // 2. Usar o valor preciso para calcular a fração de congestionamento
+    double bytesEcnFraction = 0.0;
+    if (tcb->m_lastAckedSackedBytes > 0)
     {
-        m_nextSeq = tcb->m_nextTxSequence;
-        m_nextSeqFlag = true;
+        bytesEcnFraction = static_cast<double>(ceBytes) / tcb->m_lastAckedSackedBytes;
     }
-    if (tcb->m_lastAckedSeq >= m_nextSeq)
+    
+    // 3. Atualizar o alpha com a fração precisa
+    m_alpha = (1.0 - m_g) * m_alpha + m_g * bytesEcnFraction;
+    NS_LOG_INFO("AccECN: Updated alpha = " << m_alpha);
+
+    // 4. Resetar o valor na "caixa de correio" para não ser usado novamente
+    tcb->m_aceCeBytes = 0;
+
+    // Aumento da janela
+    if (tcb->m_congState == TcpSocketState::CA_OPEN)
     {
-        double bytesEcn = 0.0; // Corresponds to variable M in RFC 8257
-        if (m_ackedBytesTotal > 0)
-        {
-            bytesEcn = static_cast<double>(m_ackedBytesEcn * 1.0 / m_ackedBytesTotal);
-        }
-        m_alpha = (1.0 - m_g) * m_alpha + m_g * bytesEcn;
-        m_traceCongestionEstimate(m_ackedBytesEcn, m_ackedBytesTotal, m_alpha);
-        NS_LOG_INFO(this << "bytesEcn " << bytesEcn << ", m_alpha " << m_alpha);
-        Reset(tcb);
+        double adder = static_cast<double>(tcb->m_segmentSize * tcb->m_segmentSize) / tcb->m_cWnd.Get();
+        adder = std::max(1.0, adder);
+        tcb->m_cWnd = tcb->m_cWnd.Get() + static_cast<uint32_t>(adder);
     }
 }
 

@@ -7,6 +7,7 @@
 #define TCP_SOCKET_STATE_H
 
 #include "tcp-rx-buffer.h"
+/*#include "ns3/tcp-socket.h"*/
 
 #include "ns3/data-rate.h"
 #include "ns3/internet-export.h"
@@ -211,7 +212,10 @@ class TcpSocketState : public Object
     uint32_t m_lastAckedSackedBytes{
         0}; //!< The number of bytes acked and sacked as indicated by the current ACK received. This
             //!< is similar to acked_sacked variable in Linux
-
+    
+    // VARIÁVEL PARA A FEATURE 2 (AccECN)
+    uint32_t m_aceCeBytes{0}; //!< Bytes marcados com CE lidos da opção ACE
+        
     /**
      * @brief Get cwnd in segments rather than bytes
      *
