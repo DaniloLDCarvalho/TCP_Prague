@@ -120,6 +120,13 @@ class TcpPrague : public TcpLinuxReno
      */
     void InitializePragueAlpha(double alpha);
 
+    /**
+    * @brief Detecta perda com base no tempo (SRTT + margem)
+    *
+    * @param tcb Estado interno do socket
+    */
+    void DetectLossByTime(Ptr<TcpSocketState> tcb);
+
     uint32_t m_ackedBytesEcn;       //!< Number of acked bytes which are marked
     uint32_t m_ackedBytesTotal;     //!< Total number of acked bytes
     SequenceNumber32 m_priorRcvNxt; //!< Sequence number of the first missing byte in data
@@ -135,6 +142,9 @@ class TcpPrague : public TcpLinuxReno
     bool m_initialized;        //!< Whether Prague has been initialized
     Time m_baseRtt;            //!< O RTT mínimo observado (baseline)
     bool m_inClassicFallback;  //!< Verdadeiro se estivermos em modo de fallback clássico
+    Time m_lastSentTime;              //!< Última vez em que houve envio ou ACK (para medir inatividade)
+    Time m_reorderingMargin;          //!< Margem de segurança para reordenação (usada no tempo limite)
+    EventId m_lossDetectionEvent;     //!< Evento agendado para checar perda baseada em tempo
     /**
      * @brief Callback pointer for congestion state update
      */

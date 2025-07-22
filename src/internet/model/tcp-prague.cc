@@ -13,6 +13,8 @@
 
 #include "ns3/abort.h"
 #include "ns3/log.h"
+#include "ns3/simulator.h"
+
 
 namespace ns3
 {
@@ -44,6 +46,11 @@ TcpPrague::GetTypeId()
                           BooleanValue(false),
                           MakeBooleanAccessor(&TcpPrague::m_useEct0),
                           MakeBooleanChecker())
+            .AddAttribute("ReorderingMargin",
+              "Safety margin for reordering when detecting loss in time units",
+              TimeValue(MilliSeconds(10)),
+              MakeTimeAccessor(&TcpPrague::m_reorderingMargin),
+              MakeTimeChecker())
             .AddTraceSource("CongestionEstimate",
                             "Update sender-side congestion estimate state",
                             MakeTraceSourceAccessor(&TcpPrague::m_traceCongestionEstimate),
@@ -69,7 +76,8 @@ TcpPrague::TcpPrague()
       m_delayedAckReserved(false),
       m_initialized(false),
       m_baseRtt(Time(0)),
-      m_inClassicFallback(false)
+      m_inClassicFallback(false),
+      m_reorderingMargin(MilliSeconds(10))
 {
     NS_LOG_FUNCTION(this);
 }
@@ -192,6 +200,43 @@ TcpPrague::PktsAcked(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, const Time
         double adder = static_cast<double>(tcb->m_segmentSize * tcb->m_segmentSize) / tcb->m_cWnd.Get();
         adder = std::max(1.0, adder);
         tcb->m_cWnd = tcb->m_cWnd.Get() + static_cast<uint32_t>(adder);
+    }
+
+    // Atualizar última vez que recebeu ACK (como proxy do tempo de envio do último pacote não confirmado)
+    m_lastSentTime = Simulator::Now();
+
+    // Iniciar ou reiniciar o timer de detecção de perda
+    if (m_lossDetectionEvent.IsPending())
+    {
+        Simulator::Cancel(m_lossDetectionEvent);
+    }
+    //NS_LOG_INFO("Agendando DetectLossByTime para " << (tcb->m_srtt + m_reorderingMargin).GetMilliSeconds() << "ms no futuro.");
+    m_lossDetectionEvent = Simulator::Schedule(tcb->m_srtt + m_reorderingMargin,
+                                            &TcpPrague::DetectLossByTime, this, tcb);
+}
+
+void
+TcpPrague::DetectLossByTime(Ptr<TcpSocketState> tcb)
+{
+    Time now = Simulator::Now();
+    Time timeSinceLastAck = now - m_lastSentTime;
+    Time timeoutThreshold = tcb->m_srtt + m_reorderingMargin;
+
+    if (timeSinceLastAck >= timeoutThreshold)
+    {
+        NS_LOG_INFO("Time-based loss detection triggered. No ACKs for " << timeSinceLastAck.GetMilliSeconds()
+                     << "ms (SRTT + margin = " << timeoutThreshold.GetMilliSeconds() << "ms)");
+
+        // Acionar evento de perda
+        CwndEvent(tcb, TcpSocketState::CA_EVENT_LOSS);
+    }
+    else
+    {
+        NS_LOG_INFO("[Prague] No loss detected. Time since last ACK: "
+                    << timeSinceLastAck.GetMilliSeconds() << " ms");
+        // Reagenda a verificação se necessário
+        m_lossDetectionEvent = Simulator::Schedule(timeoutThreshold - timeSinceLastAck,
+                                                   &TcpPrague::DetectLossByTime, this, tcb);
     }
 }
 

@@ -221,6 +221,7 @@ main(int argc, char* argv[])
     bool enableSwitchEcn = true;
     Time progressInterval = MilliSeconds(100);
 
+
     CommandLine cmd(__FILE__);
     cmd.AddValue("tcpTypeId", "ns-3 TCP TypeId", tcpTypeId);
     cmd.AddValue("flowStartupWindow",
@@ -263,8 +264,8 @@ main(int argc, char* argv[])
     Config::SetDefault("ns3::RedQueueDisc::MaxSize", QueueSizeValue(QueueSize("2666p")));
     Config::SetDefault("ns3::RedQueueDisc::QW", DoubleValue(1));
     // Parâmetros RED originais mantidos, conforme solicitado.
-    Config::SetDefault("ns3::RedQueueDisc::MinTh", DoubleValue(20));
-    Config::SetDefault("ns3::RedQueueDisc::MaxTh", DoubleValue(60));
+    Config::SetDefault("ns3::RedQueueDisc::MinTh", DoubleValue(100));
+    Config::SetDefault("ns3::RedQueueDisc::MaxTh", DoubleValue(200));
 
     PointToPointHelper pointToPointSR;
     pointToPointSR.SetDeviceAttribute("DataRate", StringValue("1Gbps"));
@@ -292,12 +293,12 @@ main(int argc, char* argv[])
     }*/
 
     // Bloco para forçar perdas e testar o fallback
-    /*
+    
     Ptr<RateErrorModel> em = CreateObject<RateErrorModel>();
-    em->SetAttribute("ErrorRate", DoubleValue(0.01));
+    em->SetAttribute("ErrorRate", DoubleValue(0.05));
     em->SetAttribute("ErrorUnit", StringValue("ERROR_UNIT_PACKET"));
     pointToPointT.SetDeviceAttribute("ReceiveErrorModel", PointerValue(em));
-    */
+    
 
     // Create a total of 62 links.
     std::vector<NetDeviceContainer> S1T1;
