@@ -25,8 +25,8 @@ The goal is to fully support the **mandatory requirements** for TCP Prague:
 - [✅] **Fall-back to Reno-friendly on Loss**: On detecting loss, fall back to a Reno-friendly behavior
 - [✅] **Fall-back to Reno-friendly on Classic ECN Bottleneck**: Detect classic ECN bottlenecks and adjust
 - [❌] **Reduce RTT Dependence**: Minimize RTT bias in congestion control
-- [❌] **Scale Down to Fractional Window**: Support congestion window sizes smaller than 1 MSS
-- [🛠️] **Detecting Loss in Units of Time**: Use time-based rather than packet-count-based loss detection
+- [🛠️] **Scale Down to Fractional Window**: Support congestion window sizes smaller than 1 MSS
+- [✅] **Detecting Loss in Units of Time**: Use time-based rather than packet-count-based loss detection
 
 ## ⚙️ Optional Performance Optimizations
 
