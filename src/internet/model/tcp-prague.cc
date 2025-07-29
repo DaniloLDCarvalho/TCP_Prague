@@ -13,6 +13,7 @@
 
 #include "ns3/abort.h"
 #include "ns3/log.h"
+#include <cmath>
 
 namespace ns3
 {
@@ -69,7 +70,8 @@ TcpPrague::TcpPrague()
       m_delayedAckReserved(false),
       m_initialized(false),
       m_baseRtt(Time(0)),
-      m_inClassicFallback(false)
+      m_inClassicFallback(false),
+      m_cWndFrac(0)
 {
     NS_LOG_FUNCTION(this);
 }
@@ -189,9 +191,35 @@ TcpPrague::PktsAcked(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, const Time
     // Aumento da janela
     if (tcb->m_congState == TcpSocketState::CA_OPEN)
     {
-        double adder = static_cast<double>(tcb->m_segmentSize * tcb->m_segmentSize) / tcb->m_cWnd.Get();
-        adder = std::max(1.0, adder);
-        tcb->m_cWnd = tcb->m_cWnd.Get() + static_cast<uint32_t>(adder);
+        // =======================================================
+        // LÓGICA DA JANELA FRACIONÁRIA
+        // =======================================================
+        // Substituímos o aumento aditivo padrão do Reno pela fórmula logarítmica
+        // para suportar janelas menores que 1 MSS.
+        
+        // 1. Calcular o aumento aditivo usando a fórmula do artigo [cite: 357]
+        double ssthresh_bytes = tcb->m_ssThresh.Get();
+        // Usamos log2, pois as constantes são potências de 2
+        double increase_double = ADDO * log2(ssthresh_bytes / SSTHRESHO + 1.0);
+        
+        // 2. Converter para ponto fixo (<< 8)
+        uint32_t increase_fixed_point = static_cast<uint32_t>(increase_double * 256.0);
+
+        // 3. Adicionar o incremento à parte fracionária
+        m_cWndFrac += increase_fixed_point;
+
+        // 4. Se a parte fracionária ultrapassou 1.0 (ou 256 em ponto fixo),
+        //    adicionar a parte inteira à cwnd e manter o resto.
+        if (m_cWndFrac >= 256)
+        {
+            uint32_t integer_part = m_cWndFrac / 256;
+            tcb->m_cWnd = tcb->m_cWnd.Get() + integer_part;
+            m_cWndFrac %= 256;
+        }
+
+        // Log para depuração
+        NS_LOG_INFO("Fractional Window: increase=" << increase_double << " B, cwnd=" << tcb->m_cWnd.Get() << " B, frac=" << m_cWndFrac);
+        // =======================================================
     }
 }
 
@@ -320,6 +348,7 @@ TcpPrague::CwndEvent(Ptr<TcpSocketState> tcb, const TcpSocketState::TcpCAEvent_t
         }
         // Em ambos os casos, a cwnd é reduzida para o novo ssthresh.
         tcb->m_cWnd = tcb->m_ssThresh.Get();
+        m_cWndFrac = 0; // <--- ADICIONAR: Zera a parte fracionária
         break;
     }
 
@@ -333,6 +362,7 @@ TcpPrague::CwndEvent(Ptr<TcpSocketState> tcb, const TcpSocketState::TcpCAEvent_t
             // Reutilizamos a mesma lógica da Feature 3 para consistência.
             tcb->m_ssThresh = std::max(static_cast<uint32_t>(tcb->m_segmentSize * 2), tcb->m_cWnd.Get() / 2);
             tcb->m_cWnd = tcb->m_ssThresh.Get();
+            m_cWndFrac = 0; // <--- ADICIONAR: Zera a parte fracionária
         }
         else
         {

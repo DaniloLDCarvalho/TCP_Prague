@@ -135,6 +135,18 @@ class TcpPrague : public TcpLinuxReno
     bool m_initialized;        //!< Whether Prague has been initialized
     Time m_baseRtt;            //!< O RTT mínimo observado (baseline)
     bool m_inClassicFallback;  //!< Verdadeiro se estivermos em modo de fallback clássico
+
+    // =======================================================
+    // VARIÁVEIS PARA A JANELA FRACIONÁRIA
+    // =======================================================
+    uint32_t m_cWndFrac; //!< Parte fracionária da cwnd. Usamos aritmética de ponto fixo (valor real << 8)
+
+    // Constantes para o aumento aditivo logarítmico, conforme o artigo
+    static const uint32_t ADDO = 256;    // 256 Bytes
+    static const uint32_t SSTHRESHO = 512; // 512 Bytes
+    // =======================================================
+
+
     /**
      * @brief Callback pointer for congestion state update
      */

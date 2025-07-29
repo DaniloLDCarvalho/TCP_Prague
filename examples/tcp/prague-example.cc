@@ -267,7 +267,7 @@ main(int argc, char* argv[])
     Config::SetDefault("ns3::RedQueueDisc::MaxTh", DoubleValue(60));
 
     PointToPointHelper pointToPointSR;
-    pointToPointSR.SetDeviceAttribute("DataRate", StringValue("1Gbps"));
+    pointToPointSR.SetDeviceAttribute("DataRate", StringValue("5Mbps")); //validacao da feature 6
     pointToPointSR.SetChannelAttribute("Delay", StringValue("10us"));
 
     PointToPointHelper pointToPointT;
@@ -490,9 +490,31 @@ main(int argc, char* argv[])
         ApplicationContainer clientApps1;
         AddressValue remoteAddress(InetSocketAddress(ipR2T2[i].GetAddress(0), port));
         clientHelper1.SetAttribute("Remote", remoteAddress);
-        clientApps1.Add(clientHelper1.Install(S2.Get(i)));
-        clientApps1.Start(i * flowStartupWindow / 20 + startTime + MilliSeconds(i * 5));
-        clientApps1.Stop(stopTime);
+        // =======================================================
+        // CÓDIGO ANTIGO A SER SUBSTITUÍDO:
+        // clientApps1.Add(clientHelper1.Install(S2.Get(i)));
+        // clientApps1.Start(i * flowStartupWindow / 20 + startTime + MilliSeconds(i * 5));
+        // clientApps1.Stop(stopTime);
+        // =======================================================
+
+        // =======================================================
+        // NOVO CÓDIGO PARA INSTALAR E CONFIGURAR O PACING
+        // =======================================================
+        ApplicationContainer clientApp = clientHelper1.Install(S2.Get(i));
+        // Obtemos a aplicação que acabamos de criar
+        Ptr<OnOffApplication> onOffApp = DynamicCast<OnOffApplication>(clientApp.Get(0));
+        // Pedimos o socket a ela
+        Ptr<Socket> socket = onOffApp->GetSocket();
+        // Fazemos o cast para TcpSocketBase para ter acesso ao método
+        Ptr<TcpSocketBase> tcpSocket = DynamicCast<TcpSocketBase>(socket);
+        if (tcpSocket)
+        {
+            // Chamamos o método para ativar o pacing
+            tcpSocket->SetPacingStatus(true);
+        }
+        clientApp.Start(i * flowStartupWindow / 20 + startTime + MilliSeconds(i * 5));
+        clientApp.Stop(stopTime);
+        // =======================================================
     }
 
     // Each sender in S1 and S3 sends to R1
@@ -529,19 +551,47 @@ main(int argc, char* argv[])
         ApplicationContainer clientApps1;
         AddressValue remoteAddress(InetSocketAddress(ipR1T2.GetAddress(0), port));
         clientHelper1.SetAttribute("Remote", remoteAddress);
+        // =======================================================
+        // CÓDIGO ANTIGO A SER SUBSTITUÍDO:
+        // if (i < 10)
+        // {
+        //     clientApps1.Add(clientHelper1.Install(S1.Get(i)));
+        //     clientApps1.Start(i * flowStartupWindow / 10 + startTime + MilliSeconds(i * 5));
+        // }
+        // else
+        // {
+        //     clientApps1.Add(clientHelper1.Install(S3.Get(i - 10)));
+        //     clientApps1.Start((i - 10) * flowStartupWindow / 10 + startTime +
+        //                       MilliSeconds(i * 5));
+        // }
+        // clientApps1.Stop(stopTime);
+        // =======================================================
+        
+        // =======================================================
+        // NOVO CÓDIGO PARA INSTALAR E CONFIGURAR O PACING
+        // =======================================================
+        ApplicationContainer clientApp;
         if (i < 10)
         {
-            clientApps1.Add(clientHelper1.Install(S1.Get(i)));
-            clientApps1.Start(i * flowStartupWindow / 10 + startTime + MilliSeconds(i * 5));
+            clientApp = clientHelper1.Install(S1.Get(i));
+            clientApp.Start(i * flowStartupWindow / 10 + startTime + MilliSeconds(i * 5));
         }
         else
         {
-            clientApps1.Add(clientHelper1.Install(S3.Get(i - 10)));
-            clientApps1.Start((i - 10) * flowStartupWindow / 10 + startTime +
+            clientApp = clientHelper1.Install(S3.Get(i - 10));
+            clientApp.Start((i - 10) * flowStartupWindow / 10 + startTime +
                               MilliSeconds(i * 5));
         }
 
-        clientApps1.Stop(stopTime);
+        Ptr<OnOffApplication> onOffApp = DynamicCast<OnOffApplication>(clientApp.Get(0));
+        Ptr<Socket> socket = onOffApp->GetSocket();
+        Ptr<TcpSocketBase> tcpSocket = DynamicCast<TcpSocketBase>(socket);
+        if (tcpSocket)
+        {
+            tcpSocket->SetPacingStatus(true);
+        }
+        clientApp.Stop(stopTime);
+        // =======================================================
     }
 
     // MUDANÇA 2: Alterar nomes dos arquivos de saída.
